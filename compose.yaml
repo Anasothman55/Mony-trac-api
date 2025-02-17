@@ -1,0 +1,16 @@
+
+
+services:
+  server:
+    build:
+      context: .  # Builds the Docker image from the current directory
+    ports:
+      - "8000:8000"  # Exposes port 8000 from the container to the host
+    volumes:
+      - .:/app  # Mounts the current directory to /app inside the container (for live code updates)
+      - project_volume:/app/data  # Creates and mounts a named volume to /app/data
+    environment:
+      - PYTHONUNBUFFERED=1  # Ensures logs are streamed directly without buffering (useful for debugging)
+      
+volumes:
+  project_volume:  # Declares the named volume, Docker will create it if it doesn't exist
