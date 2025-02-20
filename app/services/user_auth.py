@@ -1,16 +1,24 @@
-from fastapi import HTTPException, status
 
+from fastapi import HTTPException, Response, status
+
+from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.security import OAuth2PasswordRequestForm
+from jose import JWTError, jwt, ExpiredSignatureError
 from pydantic import EmailStr, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 from typing import Any, List
 import uuid
 
-from watchfiles import awatch
+from rich import print
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
+from ..db.redis import redis_manager
 from ..db.models import UserModel
-from ..util.user_auth import UserAuthUtils
+from ..util.user_auth import UserAuthUtils, UserTokenUtils
 from ..schema.user_auth import CreateIUserDict, CreateUser
+from ..email.user_auth import UserAuthEmail
 
 
 class UserRepositoryServer:
@@ -22,11 +30,11 @@ class UserRepositoryServer:
     result = await self.db.execute(statement)
     return result.scalars().first()
 
-  async def get_by_email(self, email: EmailStr):
+  async def get_by_email(self, email: EmailStr) -> UserModel:
     return await self._statement("email", email)
-  async def get_by_username(self, username: str):
+  async def get_by_username(self, username: str) -> UserModel:
     return await self._statement("username", username)
-  async def get_by_uid(self, uid: uuid.UUID):
+  async def get_by_uid(self, uid: uuid.UUID)-> UserModel:
     return await self._statement("uid", uid)
   async def create_user(self,new_user) -> UserModel:
     self.db.add(new_user)
@@ -34,13 +42,12 @@ class UserRepositoryServer:
     await self.db.refresh(new_user)
     return new_user
 
-
 class AuthenticationServices:
+
   def __init__(self, db: AsyncSession):
     self.db = db
     self.user_repo = UserRepositoryServer(db)
-
-
+    
   async def _unique_validation(self, email: EmailStr, username: str) -> List[dict]:
     """* a private methods that are used to validate the uniqueness of the email and username """
     errors = []
@@ -72,28 +79,125 @@ class AuthenticationServices:
       )
 
     return result
-  async def register(self, user_model: CreateIUserDict):
+  
+  async def _send_verify_email(self, email: EmailStr, full_name: str):
+    serializer = {"email": email}
+    verify_token = UserAuthUtils.create_url_safe_token(serializer)
+    
+    datadict = {
+      "verify_url": f"http://0.0.0.0:8000/api/auth/verify?token={verify_token}",
+      "username": full_name,
+      "company_name": "Monix"
+    }
+    
+    response = await UserAuthEmail.send_verification_email([email], datadict)
+    return response
+  
+  async def _authenticate_user(self, email: EmailStr, password: str) -> UserModel:
+    user = await self.user_repo.get_by_email(email)
+    
+    if not user:
+      raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail={"error": "User not found", "hint": "Please check the email address","loc":"email"}
+      )
+    
+    if password != user.hash_password:
+
+      if not UserAuthUtils.verify_password_utils(password, user.hash_password):
+        raise HTTPException(
+          status_code=status.HTTP_401_UNAUTHORIZED,
+          detail={"error": "Invalid password", "hint": "Ensure the password is correct", "loc": "password"}
+        )
+
+    return user
+
+  async def _set_auth_token(self, user: UserModel) -> None:
+    user_token_dict = {"sub": str(user.uid), "email": user.email}
+    token = await self._token_service.create_token(user_token_dict)
+    self._token_service.set_cookie_token(self.response, token)
+  async def register(self, user_model: CreateIUserDict) -> dict:
     """* a public method that is used to register a new user """
     user = await self._validate_user_data(user_model)
     hashing = UserAuthUtils.hash_password_utils(user.password)
     user_data = user.model_dump(exclude={"password"})
     
     new_user = UserModel(**user_data, hash_password=hashing)
+    
+    await self.user_repo.create_user(new_user)
+    
+    response = await self._send_verify_email(user.email, f"{user.first_name} {user.last_name}")
+    return response
+  
+  async def verify_email(self, user_email: EmailStr, response: Response):
+    
+    user = await self.user_repo.get_by_email(user_email)
+    
+    if user.is_verified:
+      return RedirectResponse(url="/")
+    
+    user.is_verified = True
+    await self.db.commit()
+    await self.db.refresh(user)
+    
+    return user
 
-    return await self.user_repo.create_user(new_user)
+  async def login_services(self, form_data: dict, response: Response):
 
+    user = await self._authenticate_user(**form_data)
+    
+    if not user.is_verified:
+      msg = "Your account is not verified. A new verification email has been sent."
+      response_data = await self._send_verify_email(user.email, f"{user.first_name} {user.last_name}", msg)
+      return JSONResponse(
+        status_code=status.HTTP_403_FORBIDDEN,
+        content={"detail": response_data}
+      )
+    
+    token_dict = {
+      "sub": str(user.uid),
+      "email": user.email
+    }
 
+    user.last_login = datetime.now(timezone.utc)
+    await self.db.commit()
+    await self.db.refresh(user)
+    
+    user_token = UserTokenUtils(token_dict)
+    result = await user_token.create_token(response)
+    
+    return {"message": result, "user": user}
 
+  @staticmethod
+  async def logout_service(access_token, refresh_token, response: Response):
+    try:
 
-
-
-
-
-
-
-
-
-
+      access_token_decode = UserTokenUtils.jwt_decode(access_token)
+      user_uid = str(access_token_decode.get("sub"))
+      redis_refresh_token = await redis_manager.get_refresh_token(user_uid)
+      
+      if redis_refresh_token != refresh_token:
+        raise HTTPException(
+          status_code=status.HTTP_401_UNAUTHORIZED,
+          detail={"error": "Invalid refresh token"}
+        )
+      
+      redis_payload = UserTokenUtils.jwt_decode(redis_refresh_token)
+      await redis_manager.delete_refresh_token(user_uid)
+      await redis_manager.blacklist_refresh_token(redis_payload.get('rtuid'))
+      
+      response.delete_cookie("access_token")
+      response.delete_cookie("refresh_token")
+    except ExpiredSignatureError:
+      raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Token has expired"
+      )
+    except JWTError as e:
+      raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail=f"Invalid token: {str(e)}"
+      )
 
 
 

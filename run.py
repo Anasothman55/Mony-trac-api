@@ -10,6 +10,6 @@ if __name__ == "__main__":
 """
 alembic
 1- alembic init -t async migrations
-2-  alembic revision --autogenerate -m "fix user"
-3- alembic upgrade 0c38b062cb62    
-"""
+2-  alembic revision --autogenerate -m "fix timestamp 5"
+3- alembic upgrade 44b1039302e8    
+""" 

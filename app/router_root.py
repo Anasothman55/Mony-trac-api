@@ -31,6 +31,10 @@ async def helth(db: Annotated[AsyncSession, Depends(get_db)]):
 
 from .routes.user_auth import route as auth_route
 
+@root.get("/")
+async def root_route():
+  return {"message": "Welcome to FastAPI Project"}
+
 root.include_router(auth_route, prefix="/api/auth", tags=["auth"])
 
 

@@ -16,6 +16,7 @@ dependencies = [
     "passlib[cryptography]>=1.7.4",
     "python-jose[cryptography]>=3.3.0",
     "python-multipart[all]>=0.0.20",
+    "redis>=5.2.1",
     "rich>=13.9.4",
     "sqlalchemy[all]>=2.0.37",
     "sqlmodel[all]>=0.0.22",
