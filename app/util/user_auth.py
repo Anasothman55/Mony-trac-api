@@ -47,6 +47,24 @@ class UserTokenUtils:
     encoded_jwt = jwt.encode(to_encod, setting.SECRET_KEY, algorithm=setting.ALGORITHM)
     return encoded_jwt
 
+  async def refresh_token_utils(self, rtuid, response: Response):
+    atuid = str(uuid.uuid4())
+    
+    access_token_expire = timedelta(minutes=setting.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = self.create_access_token(
+      data={**self.token_dict, "atuid": atuid, "rtuid": rtuid},
+      expires_delta=access_token_expire
+    )
+
+    response.set_cookie(
+      key="access_token",
+      value= access_token,
+      httponly=True,
+      secure=False,  # Added secure flag for HTTPS
+      samesite='lax'  # Added samesite protection
+    )
+
+    return "Refresh Token successfully"
   async def create_token(self, response: Response):
     """ rhis method to create a new token and store refresh token in redis and access token in cookie"""
     atuid = str(uuid.uuid4())
@@ -70,7 +88,7 @@ class UserTokenUtils:
       key="access_token",
       value= access_token,
       httponly=True,
-      secure=True,  # Added secure flag for HTTPS
+      secure=False,  # Added secure flag for HTTPS
       samesite='lax'  # Added samesite protection
     )
     
@@ -78,7 +96,7 @@ class UserTokenUtils:
       key="refresh_token",
       value=refresh_token,
       httponly=True,
-      secure=True,
+      secure=False,
       samesite="lax",
     )
     return "User login successfully"
@@ -128,6 +146,22 @@ class CheckAccessTokenData:
         status_code=status.HTTP_403_FORBIDDEN,
         detail="User is inactive. Please contact support.",
       )
+
+
+@dataclass
+class CheckRefreshTokenData:
+  rrf: dict
+  
+  def validate(self) -> dict:
+    credentials_exception = HTTPException(
+      status_code=status.HTTP_401_UNAUTHORIZED,
+      detail="Could not validate credentials",
+    )
+    
+    rfdata = ["sub", "rtuid", "exp", "refresh"]
+    if not all(rfdata):
+      raise credentials_exception
+    return dict(self.rrf)
 
 
 class  UserAuthUtils:

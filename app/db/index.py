@@ -15,7 +15,8 @@ engine = create_async_engine(
   pool_size=5,  # Maximum number of connections in the pool
   max_overflow=10,  # Maximum number of connections that can be created beyond pool_size
   pool_timeout=30,  # Seconds to wait before giving up on getting a connection from the pool
-  pool_recycle=1800  # Recycle connections after 1800 seconds (30 minutes)
+  pool_recycle=1800,  # Recycle connections after 1800 seconds (30 minutes)
+  #connect_args={"ssl": True}  # Explicitly enable SSL
 )
 
 

@@ -2,8 +2,7 @@ from fastapi import  FastAPI
 from .router_root import  root
 from contextlib import  asynccontextmanager
 from .db.index import init_db, close_db_connection, get_db
-from fastapi.staticfiles import StaticFiles
-from pathlib import Path
+
 
 
 @asynccontextmanager

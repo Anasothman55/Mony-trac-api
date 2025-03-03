@@ -1,4 +1,4 @@
-from fastapi import  APIRouter, Depends, status, HTTPException
+from fastapi import  APIRouter, Depends, Response, status, HTTPException
 from typing import Annotated
 from sqlalchemy import  text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,15 +26,18 @@ async def helth(db: Annotated[AsyncSession, Depends(get_db)]):
       detail=f"Database connection failed: {str(e)}"
     )
 
+@root.get("/")
+async def root_route(res: Response):
+  return {"message": "Welcome to FastAPI Project"}
 
 
 
 from .routes.user_auth import route as auth_route
-
-@root.get("/")
-async def root_route():
-  return {"message": "Welcome to FastAPI Project"}
+from .routes.categories import route as category_route
+from .routes.transection import route as transaction_route
 
 root.include_router(auth_route, prefix="/api/auth", tags=["auth"])
+root.include_router(category_route, prefix="/api/categories", tags=["categories"])
+root.include_router(transaction_route, prefix="/api/transactions", tags=["transactions"])
 
 

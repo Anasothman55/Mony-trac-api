@@ -2,8 +2,9 @@ from datetime import datetime, date
 from pydantic import BaseModel, Field, ConfigDict, EmailStr, StrictStr
 import uuid
 from enum import Enum
+from typing import List,Optional
 
-
+from .balance import BalanceBase
 
 
 class RoleBase(str, Enum):
@@ -40,6 +41,7 @@ class GetFullUser(UserBase):
   updated_at: datetime
   is_verified: bool
 
+  balance_model: Optional[BalanceBase] = {}
   model_config = ConfigDict(
     str_strip_whitespace=True,
     json_schema_extra={
@@ -49,11 +51,19 @@ class GetFullUser(UserBase):
         "first_name": "John",
         "last_name": "Doe",
         "uid": str(uuid.uuid4()),
-        "role": "user",
+        "role": "users",
         "is_active": True,
         "last_login": datetime.now(),
         "created_at": datetime.now(),
-        "updated_at": datetime.now()
+        "updated_at": datetime.now(),
+        "balance_model": {
+          "uid": str(uuid.uuid4()),
+          "income_amount": 0.0,
+          "expenses_amount": 0.0,
+          "save_amount": 0.0,
+          "created_at": datetime.now(),
+          "updated_at": datetime.now()
+        }
       }
     }
   )
