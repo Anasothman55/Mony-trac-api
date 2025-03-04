@@ -13,8 +13,7 @@ from ..util.categories import CategoryRepository
 
 
 
-async def get_all_category_services(
-    db: Annotated[AsyncSession, Depends(get_db)],user_uid, order_by) -> Sequence[CategoryModel]:
+async def get_all_category_services(db: AsyncSession,user_uid, order_by) -> Sequence[CategoryModel]:
   order_column = getattr(CategoryModel, "created_at")
   if order_by.startswith('-'):
     order_column = desc(order_column)
@@ -46,8 +45,7 @@ async def update_category_services(repo: CategoryRepository, category_uid: uuid.
   return result
 
 
-async def delete_category_services(db: AsyncSession, category_uid: uuid.UUID) -> None:
-  category = await get_one_category_services(db,category_uid)
-  await db.delete(category)
-  await db.commit()
+async def delete_category_services(repo: CategoryRepository, category_uid: uuid.UUID) -> None:
+  category = await repo.get_by_uid(category_uid)
+  await repo.delete_row(category)
   return None

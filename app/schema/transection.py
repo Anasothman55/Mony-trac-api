@@ -1,10 +1,9 @@
 
-from datetime import datetime, date
+from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, Field, ConfigDict, EmailStr, StrictStr
+from pydantic import BaseModel, Field
 import uuid
-from typing import List, Optional, Annotated
 
 
 
@@ -14,9 +13,7 @@ class TransactionBase(BaseModel):
 
 
 class CreateTransaction(TransactionBase):
-  type: str
   category_id: uuid.UUID
-  user_uid: uuid.UUID
 
 class UpdateTransaction(TransactionBase):
   pass

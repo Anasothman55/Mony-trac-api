@@ -24,7 +24,9 @@ from ..services.categories import (
 
 
 
-route = APIRouter()
+route = APIRouter(
+  dependencies= [Depends(get_current_user)]
+)
 
 
 @route.get('/get_all', response_model= List[GetAllCategory], status_code= status.HTTP_200_OK)
@@ -94,14 +96,13 @@ async def update_category(
     raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
-
 @route.delete("/delete/{category_uid}", status_code=status.HTTP_204_NO_CONTENT)
-async def update_category(
+async def delete_category(
     category_uid: Annotated[uuid.UUID, Path(...)],
-    db: Annotated[AsyncSession, Depends(get_db)]
+    repo: Annotated[CategoryRepository, Depends(get_category_repo)],
 ):
   try:
-    await delete_category_services(db, category_uid)
+    await delete_category_services(repo, category_uid)
 
   except HTTPException as ex:
     raise ex

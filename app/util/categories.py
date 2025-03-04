@@ -20,6 +20,10 @@ class CategoryRepository:
     await self.db.refresh(row)
     return row
 
+  async def delete_row(self, row):
+    await self.db.delete(row)
+    await self.db.commit()
+
   async def get_by_uid(self, uid: uuid.UUID):
     return await self._statement(field="uid", value=uid)
 
