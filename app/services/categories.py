@@ -1,5 +1,6 @@
 from fastapi import Depends, HTTPException, Response, status
 
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select,desc, asc,and_
 from typing import Annotated, Any, List, Sequence
@@ -21,7 +22,10 @@ async def get_all_category_services(db: AsyncSession,user_uid, order_by) -> Sequ
     order_column = asc(order_column)
 
   statement = (
-    select(CategoryModel).where(CategoryModel.user_uid == user_uid).order_by(order_column)
+    select(CategoryModel)
+    .where(CategoryModel.user_uid == user_uid)
+    .options(selectinload(CategoryModel.transactions))
+    .order_by(order_column)
   )
   result = await db.execute(statement)
   return result.scalars().all()

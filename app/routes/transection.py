@@ -21,6 +21,10 @@ from ..services.transection import (
   update_transaction_services,
   delete_transaction_services
 )
+
+from ..services.balances import delete_transaction_balance
+
+from ..util.balance import BalanceRepository, get_balance_repo
 from ..util.transection import TransectionsRepository
 from ..util.categories import CategoryRepository
 
@@ -91,13 +95,14 @@ async def create_transaction(
     current_user: Annotated[UserModel, Depends(get_current_user)],
     repo: Annotated[TransectionsRepository, Depends(get_transaction_repo)],
     category_repo: Annotated[CategoryRepository, Depends(get_category_repo)],
+    balance_repo: Annotated[BalanceRepository, Depends(get_balance_repo)]
 ):
 
   user_uid = current_user.uid
   new_data = req_data.model_dump()
   new_data.update({"user_uid": user_uid,"type":types})
 
-  result = await create_transection_services(repo,category_repo,new_data)
+  result = await create_transection_services(repo,category_repo,new_data, balance_repo)
   return jsonable_encoder(result)
 
 
@@ -107,10 +112,11 @@ async def update_transaction(
     transaction_uid: Annotated[uuid.UUID,Path(...)],
     req_data: Annotated[UpdateTransaction, Form()],
     repo: Annotated[TransectionsRepository, Depends(get_transaction_repo)],
+    balance_repo: Annotated[BalanceRepository, Depends(get_balance_repo)]
 ):
   try:
     new_data = req_data.model_dump()
-    result = await update_transaction_services(repo, transaction_uid, new_data)
+    result = await update_transaction_services(repo, transaction_uid, new_data, balance_repo)
     return jsonable_encoder(result)
 
   except HTTPException as ex:
@@ -122,11 +128,18 @@ async def update_transaction(
 
 @route.delete("/delete/{transaction_uid}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_transaction(
+    *
     transaction_uid: Annotated[uuid.UUID, Path(...)],
+    remove_q: Annotated[bool, Query(...)] = True,
     repo: Annotated[TransectionsRepository, Depends(get_transaction_repo)],
+    current_user: Annotated[UserModel, Depends(get_current_user)],
+    balance_repo: Annotated[BalanceRepository, Depends(get_balance_repo)]
 ):
   try:
-    await delete_transaction_services(repo, transaction_uid)
+    user_uid = current_user.uid
+    amount,types = await delete_transaction_services(repo, transaction_uid)
+    if remove_q:
+      await delete_transaction_balance(balance_repo,amount,user_uid, types)
 
   except HTTPException as ex:
     raise ex

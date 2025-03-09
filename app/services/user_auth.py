@@ -224,7 +224,7 @@ class AuthenticationServices:
     
     user_token = UserTokenUtils(token_dict)
     result = await user_token.create_token(response)
-    
+
     return {"message": result, "user": user}
 
   @staticmethod

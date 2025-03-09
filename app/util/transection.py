@@ -29,7 +29,7 @@ class TransectionsRepository:
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-  async def get_by_uid(self, uid: uuid.UUID):
+  async def get_by_uid(self, uid: uuid.UUID)-> transactionModel:
     return await self._statement(field="uid", value=uid)
   async def get_by_type(self, type: str):
     statement = select(self.model).where(getattr(self.model, "type") == type)

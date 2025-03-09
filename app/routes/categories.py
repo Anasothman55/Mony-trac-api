@@ -1,4 +1,6 @@
 
+from rich import  print
+
 from typing import Annotated, List
 from fastapi import APIRouter,  Query, status, HTTPException, Form, Depends, Path
 from fastapi.encoders import jsonable_encoder
@@ -48,7 +50,8 @@ async def get_all_categories(
 
   if not result:
     return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"message": "No data found"})
-  return jsonable_encoder(result)
+  print(result)
+  return result
 
 @route.post("/create", status_code=status.HTTP_201_CREATED)
 async def create_category(
@@ -61,7 +64,7 @@ async def create_category(
   new_data.update({"user_uid": user_uid})
 
   result = await create_category_services(repo,new_data)
-  return jsonable_encoder(result)
+  return result
 
 
 @route.get('/get-one/{category_uid}',  status_code= status.HTTP_200_OK)

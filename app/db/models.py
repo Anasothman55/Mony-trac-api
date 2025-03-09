@@ -74,7 +74,10 @@ class CategoryModel( SQLModel, table = True):
   user_uid: uuid.UUID = Field( foreign_key="users.uid")
 
   user_model: Optional[UserModel] = Relationship(back_populates="category_model", sa_relationship_kwargs={"lazy": "selectin"})
-  transaction_model: List["transactionModel"] = Relationship(back_populates="category_model", sa_relationship_kwargs={"lazy": "selectin"})
+  transactions: List["transactionModel"] = Relationship(
+    back_populates="category",sa_relationship_kwargs={"lazy": "selectin"}
+  )
+
   created_at: datetime = Field( sa_column=Column(pg.TIMESTAMP(timezone=True), default=datetime.now(timezone.utc)) )
   updated_at: datetime = Field(
     sa_column=Column(pg.TIMESTAMP(timezone=True), default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
@@ -94,7 +97,8 @@ class transactionModel(SQLModel, table = True):
   category_id: uuid.UUID = Field(foreign_key="categories.uid")
   user_uid: uuid.UUID = Field (foreign_key="users.uid")
 
-  category_model: Optional[CategoryModel] = Relationship(back_populates="transaction_model", sa_relationship_kwargs={"lazy": "selectin"})
+  category: Optional[CategoryModel] = Relationship(back_populates="transactions", sa_relationship_kwargs={"lazy": "selectin"})
+
 
   created_at: datetime = Field( sa_column=Column(pg.TIMESTAMP(timezone=True), default=datetime.now(timezone.utc)) )
   updated_at: datetime = Field(

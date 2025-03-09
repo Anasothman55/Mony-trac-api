@@ -8,8 +8,10 @@ import uuid
 
 from rich import print
 
+from .balances import add_transaction_balance,update_transaction_balance
 from ..db.index import get_db
 from ..db.models import transactionModel
+from ..util.balance import BalanceRepository
 from ..util.categories import CategoryRepository
 from ..util.transection import  TransectionsRepository
 
@@ -30,7 +32,7 @@ async def get_all_transection_services(db: AsyncSession,user_uid, order_by) -> S
 
 
 async def create_transection_services(
-    repo: TransectionsRepository ,category_repo: CategoryRepository,req_data: dict) -> transactionModel:
+    repo: TransectionsRepository ,category_repo: CategoryRepository,req_data: dict, balance_repo: BalanceRepository) -> transactionModel:
   category_id = req_data.get("category_id")
   result = await category_repo.get_by_uid(category_id)
 
@@ -42,6 +44,9 @@ async def create_transection_services(
 
   new_row = transactionModel(**req_data )
   result = await repo.create_row(new_row)
+
+  await add_transaction_balance(balance_repo,req_data['amount'], req_data['user_uid'],req_data['type'])
+
   return result
 
 async def get_one_transection_services( repo: TransectionsRepository ,transection_uid: uuid.UUID) -> transactionModel:
@@ -56,15 +61,21 @@ async def get_transection_by_type_services(
   return result
 
 async def update_transaction_services(
-    repo: TransectionsRepository, transection_uid: uuid.UUID, req_data: dict) -> transactionModel:
+    repo: TransectionsRepository, transection_uid: uuid.UUID, req_data: dict,balance_repo: BalanceRepository) -> transactionModel:
   transaction = await get_one_transection_services(repo ,transection_uid)
+  transaction_amount = transaction.amount
   result = await repo.update_row(req_data, transaction)
+  await update_transaction_balance(
+    balance_repo,transaction_amount,req_data['amount'],transaction.type, result.user_uid
+  )
   return result
 
 
-async def delete_transaction_services(repo: TransectionsRepository, transection_uid: uuid.UUID) -> None:
+async def delete_transaction_services(repo: TransectionsRepository, transection_uid: uuid.UUID)-> tuple:
   transaction = await repo.get_by_uid(transection_uid)
   if not transaction:
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+  amount = transaction.amount
+  types = transaction.type
   await repo.delete_row(transaction)
-  return None
+  return amount,types
