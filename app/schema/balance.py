@@ -8,7 +8,6 @@ from enum import Enum
 
 
 class BalanceBase(BaseModel):
-
   uid: uuid.UUID
   income_amount : Decimal  = Field(default=0.0)
   expenses_amount : Decimal  = Field(default=0.0)
@@ -30,6 +29,13 @@ class BalanceBase(BaseModel):
     }
   )
 
+
+class BalanceOut(BaseModel):
+  uid: uuid.UUID
+  income_amount : Decimal  = Field(default=0.0)
+  expenses_amount : Decimal  = Field(default=0.0)
+  save_amount: Decimal  = Field(default=0.0)
+  balance_amount: Decimal  = Field(default=0.0)
 
 
 

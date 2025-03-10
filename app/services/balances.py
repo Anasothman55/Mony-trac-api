@@ -3,7 +3,21 @@ from decimal import Decimal
 from ..db.models import BalanceModel
 from ..util.balance import BalanceRepository
 
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select  # type: ignore
+
 import uuid
+
+
+
+async def get_user_balance(user_uid: uuid.UUID ,db: AsyncSession) -> BalanceModel:
+  statement = select(BalanceModel).where(
+    getattr(BalanceModel, "user_id") == user_uid
+  )
+  result = await db.execute(statement)
+  return result.scalars().first()
+
+
 
 
 def incrise_type(types: str, balance: BalanceModel, amount: Decimal):

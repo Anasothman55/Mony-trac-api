@@ -1,4 +1,5 @@
 
+from decimal import Decimal
 from fastapi import Depends, HTTPException, Response, status
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,17 +36,21 @@ async def create_transection_services(
     repo: TransectionsRepository ,category_repo: CategoryRepository,req_data: dict, balance_repo: BalanceRepository) -> transactionModel:
   category_id = req_data.get("category_id")
   result = await category_repo.get_by_uid(category_id)
-
+  
   if not result:
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
-
   if result.type != req_data['type']:
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Category type mismatch")
+  if req_data['amount'] < 0:
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid amount") 
 
   new_row = transactionModel(**req_data )
   result = await repo.create_row(new_row)
-
-  await add_transaction_balance(balance_repo,req_data['amount'], req_data['user_uid'],req_data['type'])
+  
+  if result.type == 'use_save':
+    await balance_repo.use_svae_utils(req_data['user_uid'], req_data["amount"])
+  else:
+    await add_transaction_balance(balance_repo,req_data['amount'], req_data['user_uid'],req_data['type'])
 
   return result
 

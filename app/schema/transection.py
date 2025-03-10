@@ -15,6 +15,10 @@ class TransactionBase(BaseModel):
 class CreateTransaction(TransactionBase):
   category_id: uuid.UUID
 
+class UseSaveTransaction(BaseModel):
+  amount: Decimal = Field(..., title="Amount of the transaction", ge=0)
+  category_id: uuid.UUID
+
 class UpdateTransaction(TransactionBase):
   pass
 

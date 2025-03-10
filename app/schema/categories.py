@@ -11,6 +11,7 @@ class CATEGORY_TYPE_ENUM(str, Enum):
   income = "income"
   expenses = "expenses"
   save = "save"
+  use_save = "use_save"
 
 
 class CategoryBase(BaseModel):

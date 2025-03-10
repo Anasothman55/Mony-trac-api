@@ -35,9 +35,11 @@ async def root_route(res: Response):
 from .routes.user_auth import route as auth_route
 from .routes.categories import route as category_route
 from .routes.transection import route as transaction_route
+from .routes.balance import route as balance_route
 
 root.include_router(auth_route, prefix="/api/auth", tags=["auth"])
 root.include_router(category_route, prefix="/api/categories", tags=["categories"])
 root.include_router(transaction_route, prefix="/api/transactions", tags=["transactions"])
+root.include_router(balance_route, prefix="/api/balance", tags=["balance"])
 
 

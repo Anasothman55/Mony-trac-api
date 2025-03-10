@@ -1,4 +1,4 @@
-from os import access
+
 from typing import Annotated, List
 from fastapi import APIRouter,  Query, status, HTTPException, Form, Depends, Path
 from fastapi.encoders import jsonable_encoder
@@ -102,6 +102,12 @@ async def create_transaction(
   new_data = req_data.model_dump()
   new_data.update({"user_uid": user_uid,"type":types})
 
+  if types == "save":
+    balance_amount = await balance_repo.get_balance_amount(user_uid)
+    new_save = new_data["amount"]
+    if new_save > balance_amount:
+      raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Insufficient balance")
+
   result = await create_transection_services(repo,category_repo,new_data, balance_repo)
   return jsonable_encoder(result)
 
@@ -125,15 +131,36 @@ async def update_transaction(
     raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
+@route.patch("/use-save", response_model=CreateTransaction, status_code=status.HTTP_201_CREATED)
+async def create_transaction(
+    req_data: Annotated[CreateTransaction, Form()],
+    current_user: Annotated[UserModel, Depends(get_current_user)],
+    repo: Annotated[TransectionsRepository, Depends(get_transaction_repo)],
+    category_repo: Annotated[CategoryRepository, Depends(get_category_repo)],
+    balance_repo: Annotated[BalanceRepository, Depends(get_balance_repo)]
+):
+  types = CATEGORY_TYPE_ENUM.use_save
+  user_uid = current_user.uid
+  new_data = req_data.model_dump()
+  new_data.update({"user_uid": user_uid,"type":types})
+  
+  save_amount = await balance_repo.get_save_amount(user_uid)
+  new_save = new_data["amount"]
+  if new_save > save_amount:
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Insufficient balance")
+  
+  result = await create_transection_services(repo,category_repo,new_data, balance_repo)
+  return jsonable_encoder(result)
+
+
 
 @route.delete("/delete/{transaction_uid}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_transaction(
-    *
     transaction_uid: Annotated[uuid.UUID, Path(...)],
-    remove_q: Annotated[bool, Query(...)] = True,
     repo: Annotated[TransectionsRepository, Depends(get_transaction_repo)],
     current_user: Annotated[UserModel, Depends(get_current_user)],
-    balance_repo: Annotated[BalanceRepository, Depends(get_balance_repo)]
+    balance_repo: Annotated[BalanceRepository, Depends(get_balance_repo)],
+    remove_q: Annotated[bool, Query(...)] = True
 ):
   try:
     user_uid = current_user.uid
